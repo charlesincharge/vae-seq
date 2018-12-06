@@ -16,6 +16,7 @@
 
 from __future__ import print_function
 
+import h5py
 import numpy as np
 import scipy.io
 import tensorflow as tf
@@ -50,6 +51,7 @@ def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
         assert binned_spikes.shape[2] == _NUM_CHANNELS, \
             "expected: {}, actual: {}".format(_NUM_CHANNELS, binned_spikes.shape[0])
         # TODO: change MATLAB format to (trial #, time, channel)
+        # Although (trial #, channel, time) makes more sense to me in terms of dimensions
         return binned_spikes
 
 
@@ -59,10 +61,10 @@ def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
         Args:
           filename (str): HDF5 or MATLAB file containing binned spiking data
         """
-        binned_spikes = tf.py_func(_to_binned_spikes,
+        binned_spikes, = tf.py_func(_to_binned_spikes,
                                    [filename, sequence_size],
                                    [tf.uint32])
-        binned_spikes.set_shape([None None _NUM_CHANNELS])
+        binned_spikes.set_shape([None, None, _NUM_CHANNELS])
         return tf.data.Dataset.from_tensor_slices(binned_spikes)
 
     batch_size = tf.to_int64(batch_size)
@@ -75,5 +77,21 @@ def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
             .batch(batch_size))
 
 
-def random_spiking_sequence(path, num_time_points):
-    raise NotImplementedError
+def write_poisson_spikes(path, num_time_points):
+    """Generate an arbitrary spiking sequence with a Poisson process.
+    Write data to the path (Not yet implemented)
+    Hard-coded as a testing utility, but could be generalized.
+    Inspired by LFADS/synth_data/synthetic_data_utils.py:spikify_data
+    Ranges from 1-10Hz neurons
+    Args:
+    """
+    spikes = np.zeros([1, _NUM_CHANNELS, num_time_points]).astype(np.int)
+    for channel in range(_NUM_CHANNELS):
+        spikes[0, channel,:] = np.random.poisson(channel, size=num_time_points)
+
+    try:
+        with h5py.File(path, 'a') as h5_file:
+            h5_file.create_dataset(_SPIKE_FIELD_NAME, data=spikes)
+    except IOError:
+        print("Cannot open {} for writing".format(path))
+        raise
