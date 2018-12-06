@@ -22,6 +22,7 @@ import tensorflow as tf
 
 # TODO: remove hard-coding
 _NUM_CHANNELS = 75
+_SPIKE_FIELD_NAME = 'observed_spikes'
 
 def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
     """Returns a dataset of binned neural spike sequences from the given
@@ -43,7 +44,7 @@ def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
         except (ValueError, FileNotFoundError) as exc:
             print("Skipping file: {0}. Error: {1}".format(filename, exc))
             return np.zeros(0, sequence_size, _NUM_CHANNELS)
-        binned_spikes = file_data['observed_spikes']
+        binned_spikes = file_data[_SPIKE_FIELD_NAME]
         assert binned_spikes.shape[1] == sequence_size, \
             "expected: {}, actual: {}".format(sequence_size, binned_spikes.shape[1])
         assert binned_spikes.shape[2] == _NUM_CHANNELS, \
