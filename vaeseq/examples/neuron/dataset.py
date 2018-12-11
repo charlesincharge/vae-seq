@@ -44,7 +44,7 @@ def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
             file_data = scipy.io.loadmat(tf.compat.as_text(filename))
         except (ValueError, FileNotFoundError) as exc:
             print("Skipping file: {0}. Error: {1}".format(filename, exc))
-            return np.zeros(0, sequence_size, _NUM_CHANNELS)
+            return np.zeros([0, sequence_size, _NUM_CHANNELS], dtype=np.uint32)
         binned_spikes = file_data[_SPIKE_FIELD_NAME]
         assert binned_spikes.shape[1] == sequence_size, \
             "expected: {}, actual: {}".format(sequence_size, binned_spikes.shape[1])
