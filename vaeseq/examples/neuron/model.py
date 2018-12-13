@@ -82,7 +82,8 @@ class Model(model_mod.ModelBase):
         dataset = dataset_mod.binned_spike_sequences(
             files,
             util.batch_size(self.hparams),
-            util.sequence_size(self.hparams)
+            util.sequence_size(self.hparams),
+            num_channels=self.hparams.num_recording_channels
             )
         iterator = dataset.make_initializable_iterator()
         tf.add_to_collection(tf.GraphKeys.LOCAL_INIT_OP, iterator.initializer)
