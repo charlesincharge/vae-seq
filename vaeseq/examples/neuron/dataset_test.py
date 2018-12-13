@@ -23,27 +23,30 @@ from vaeseq.examples.neuron import dataset as dataset_mod
 
 class DatasetTest(tf.test.TestCase):
     _NUM_TIME_POINTS = 100
+    _NUM_CHANNELS = 75
 
     def _write_spikes(self, file_idx):
         """Write a temporary HDF5 file with 1-trial of spiking data."""
         # temp_path = os.path.join(r'C:\Users\hst\Documents\cguan\vae-seq\build',
         temp_path = os.path.join(self.get_temp_dir(),
             "spikes_{}.h5".format(file_idx))
-        dataset_mod.write_poisson_spikes(temp_path, self._NUM_TIME_POINTS)
+        dataset_mod.write_poisson_spikes(
+            temp_path, self._NUM_TIME_POINTS, self._NUM_CHANNELS)
         return temp_path
 
     def test_binned_spike_sequences(self):
         data_filenames = [self._write_spikes(3), self._write_spikes(8)]
         batch_size = 3
         sequence_size = self._NUM_TIME_POINTS
+        num_channels = self._NUM_CHANNELS
         dataset = dataset_mod.binned_spike_sequences(
-            data_filenames, batch_size, sequence_size)
+            data_filenames, batch_size, sequence_size, num_channels)
         iterator = dataset.make_initializable_iterator()
         batch = iterator.get_next()
         with self.test_session() as sess:
             sess.run(iterator.initializer)
             batch = sess.run(batch)
-            self.assertAllEqual(batch.shape, [batch_size, sequence_size, dataset_mod._NUM_CHANNELS])
+            self.assertAllEqual(batch.shape, [batch_size, sequence_size, num_channels])
 
 
 if __name__ == "__main__":

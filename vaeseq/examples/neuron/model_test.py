@@ -24,9 +24,8 @@ from vaeseq.examples.neuron import model as model_mod
 
 
 class ModelTest(model_test.ModelTest):
-    NUM_TIME_BINS = 100
 
-    def _write_neural_data(self, num_time_bins):
+    def _write_neural_data(self, file_idx, num_time_bins, num_channels):
         """Write a temporary neural spiking data file.
 
         Args:
@@ -34,20 +33,22 @@ class ModelTest(model_test.ModelTest):
         """
         temp_path = os.path.join(self.get_temp_dir(),
                                  "spikes_{}.h5".format(file_idx))
-        dataset_mod.write_poisson_spikes(temp_path, num_time_bins)
+        dataset_mod.write_poisson_spikes(temp_path, num_time_bins, num_channels)
         return temp_path
 
     def _setup_model(self, session_params):
-        self.train_dataset = [self._write_neural_data(self.NUM_TIME_BINS),
-                              self._write_neural_data(self.NUM_TIME_BINS)]
-        self.valid_dataset = [self._write_neural_data(self.NUM_TIME_BINS),
-                              self._write_neural_data(self.NUM_TIME_BINS)]
         self.hparams = hparams_mod.make_hparams(
             rnn_hidden_sizes=[4, 4],
             obs_encoder_fc_layers=[32, 16],
             obs_decoder_fc_hidden_layers=[32],
             latent_decoder_fc_layers=[32],
             check_numerics=True)
+        num_time_bins = self.hparams.sequence_size
+        num_channels = self.hparams.num_recording_channels
+        self.train_dataset = [self._write_neural_data(3, num_time_bins, num_channels),
+                              self._write_neural_data(5, num_time_bins, num_channels)]
+        self.valid_dataset = [self._write_neural_data(7, num_time_bins, num_channels),
+                              self._write_neural_data(10, num_time_bins, num_channels)]
         self.model = model_mod.Model(self.hparams, session_params)
 
 

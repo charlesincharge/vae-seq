@@ -17,7 +17,17 @@
 from vaeseq import hparams as hparams_mod
 
 _DEFAULTS = dict(
-    # use global defaults until hparams are tested
+    # General VAE-Seq parameters
+    sequence_size=64,
+    history_size=20,  # Number of previous observations to feedback as input
+    history_encoder_fc_layers=[128, 128, 128],
+    l2_regularization=0.01,
+    latent_size=16,   # Size of MultivariateNormalDiag modeling the latent space
+
+    # examples.neuron-specific parameters
+    bin_duration_ms=10,
+    num_recording_channels=100,  # e.g. number of electrodes on Utah array
+
     vae_type='SRNN',)
 
 

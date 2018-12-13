@@ -20,23 +20,21 @@ import h5py
 import numpy as np
 import tensorflow as tf
 
-# TODO: remove hard-coding
-_NUM_CHANNELS = 75
 _SPIKE_FIELD_NAME = 'observed_spikes'
 
-def binned_spike_sequences(filenames, batch_size, sequence_size):
+def binned_spike_sequences(filenames, batch_size, sequence_size, num_channels):
     """Returns a dataset of binned neural spike sequences from the given
     files.
 
     Args:
       filenames (list(str)): List of names of neural data files, formatted as
         binned spike counts
-      batch_size (int):
-      sequence_size (int):
-      bin_width_ms (float):
+      batch_size (int): number of trials
+      sequence_size (int): number of time bins of spiked data per trial
+      num_channels (int): number of parallel recording channels per sequence
     """
 
-    def _to_binned_spikes(data_fname, sequence_size):
+    def _to_binned_spikes(data_fname, sequence_size, num_channels):
         """Load a file and return consecutive binned spike sequences.
         Skips incorrectly formatted files.
 
@@ -55,15 +53,15 @@ def binned_spike_sequences(filenames, batch_size, sequence_size):
                 data_dict = {key : np.array(val) for key, val in list(data_file.items())}
         except (ValueError, FileNotFoundError) as exc:
             print("Skipping file: {0}. Error: {1}".format(data_fname, exc))
-            return np.zeros([0, sequence_size, _NUM_CHANNELS], dtype=np.int32)
+            return np.zeros([0, sequence_size, num_channels], dtype=np.int32)
         # Open issue in tensorflow-1.11.0. We should cast this to np.uint32, but
         # tf.batch doesn't work with uint32, only int32. Fixed in 1.12.0
         # https://github.com/tensorflow/tensorflow/issues/18586
         binned_spikes = data_dict[_SPIKE_FIELD_NAME].astype(np.int32)
         assert binned_spikes.shape[1] == sequence_size, \
             "expected: {}, actual: {}".format(sequence_size, binned_spikes.shape[1])
-        assert binned_spikes.shape[2] == _NUM_CHANNELS, \
-            "expected: {}, actual: {}".format(_NUM_CHANNELS, binned_spikes.shape[0])
+        assert binned_spikes.shape[2] == num_channels, \
+            "expected: {}, actual: {}".format(num_channels, binned_spikes.shape[2])
         # TODO: change MATLAB format to (trial #, time, channel)
         # Although (trial #, channel, time) makes more sense to me in terms of dimensions
         return binned_spikes
@@ -76,9 +74,9 @@ def binned_spike_sequences(filenames, batch_size, sequence_size):
           data_fname (str): HDF5 or MATLAB file containing binned spiking data
         """
         binned_spikes, = tf.py_func(_to_binned_spikes,
-                                   [data_fname, sequence_size],
+                                   [data_fname, sequence_size, num_channels],
                                    [tf.int32])
-        binned_spikes.set_shape([None, None, _NUM_CHANNELS])
+        binned_spikes.set_shape([None, None, num_channels])
         return tf.data.Dataset.from_tensor_slices(binned_spikes)
 
     batch_size = tf.to_int64(batch_size)
@@ -91,16 +89,17 @@ def binned_spike_sequences(filenames, batch_size, sequence_size):
             .batch(batch_size))
 
 
-def write_poisson_spikes(path, num_time_points):
+def write_poisson_spikes(path, num_time_points, num_channels):
     """Generate an arbitrary spiking sequence with a Poisson process.
     Write data to the path (Not yet implemented)
     Hard-coded as a testing utility, but could be generalized.
     Inspired by LFADS/synth_data/synthetic_data_utils.py:spikify_data
     Ranges from 1-10Hz neurons
     Args:
+      num_channels (int): number of parallel recording channels per sequence
     """
-    spikes = np.zeros([1, num_time_points, _NUM_CHANNELS]).astype(np.int32)
-    for channel in range(_NUM_CHANNELS):
+    spikes = np.zeros([1, num_time_points, num_channels]).astype(np.int32)
+    for channel in range(num_channels):
         spikes[0,:,channel] = np.random.poisson(channel, size=num_time_points)
 
     try:

@@ -46,15 +46,17 @@ class Model(model_mod.ModelBase):
 
         Implementation Options:
           1. We use a MLPObsDecoder to map from state to firing rate
-          2. We use a hidden categorical variable for the finger class
+          2. We use a categorical variable back-end for the finger class
+             Note: possible that we should just be getting the firing rate out
         """
         # TODO: This should probably be a normal MLPObsDecoder
         # Not sure if CategoricalDecoder is applicable because it's not the
         # observed state, it's the data labels
+        # Not sure if this should be more like text/model.py or midi/model.py
         return codec_mod.MLPObsDecoder(
             self.hparams,
             decoder=codec_mod.CategoricalDecoder(name="finger_decoder"),
-            param_size=self.hparams.obs_dcoder_fc_hidden_layers + [6],
+            param_size=6,
             name="obs_decoder"
         )
 
@@ -80,8 +82,8 @@ class Model(model_mod.ModelBase):
         dataset = dataset_mod.binned_spike_sequences(
             files,
             util.batch_size(self.hparams),
-            util.sequence_size(self.hparams),
-            bin_duration_ms=self.hparams.bin_duration_ms)
+            util.sequence_size(self.hparams)
+            )
         iterator = dataset.make_initializable_iterator()
         tf.add_to_collection(tf.GraphKeys.LOCAL_INIT_OP, iterator.initializer)
         single_trial_data = iterator.get_next()
@@ -98,5 +100,5 @@ class Model(model_mod.ModelBase):
         single_trial_spikes, = observed
         return tf.summary.scalar(
             tag + "/spike_avg",
-            tf.reduce_mean(single_trial_spikes)),
+            tf.reduce_mean(single_trial_spikes),
             )
