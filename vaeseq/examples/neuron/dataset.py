@@ -18,34 +18,48 @@ from __future__ import print_function
 
 import h5py
 import numpy as np
-import scipy.io
 import tensorflow as tf
 
 # TODO: remove hard-coding
 _NUM_CHANNELS = 75
 _SPIKE_FIELD_NAME = 'observed_spikes'
 
-def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
+def binned_spike_sequences(filenames, batch_size, sequence_size):
     """Returns a dataset of binned neural spike sequences from the given
-    files."""
+    files.
 
-    def _to_binned_spikes(filename, sequence_size):
+    Args:
+      filenames (list(str)): List of names of neural data files, formatted as
+        binned spike counts
+      batch_size (int):
+      sequence_size (int):
+      bin_width_ms (float):
+    """
+
+    def _to_binned_spikes(data_fname, sequence_size):
         """Load a file and return consecutive binned spike sequences.
         Skips incorrectly formatted files.
 
         Args:
-          filename (str): HDF5 or MATLAB file containing binned spiking data
+          data_fname (str): HDF5 file containing binned spike data
+            Note: it would not be difficult to support .mat  files, too.
+            See scipy.io.loadmat/savemat
 
         Returns:
-          binned_spikes (3-D tf.uint32 np.array): binned spiking data, each
+          binned_spikes (3-D int32 np.array): binned spiking data, each
             element indicating number of spikes in that time window
         """
+        data_dict = {}
         try:
-            file_data = scipy.io.loadmat(tf.compat.as_text(filename))
+            with h5py.File(data_fname, 'r') as data_file:
+                data_dict = {key : np.array(val) for key, val in list(data_file.items())}
         except (ValueError, FileNotFoundError) as exc:
-            print("Skipping file: {0}. Error: {1}".format(filename, exc))
-            return np.zeros([0, sequence_size, _NUM_CHANNELS], dtype=np.uint32)
-        binned_spikes = file_data[_SPIKE_FIELD_NAME]
+            print("Skipping file: {0}. Error: {1}".format(data_fname, exc))
+            return np.zeros([0, sequence_size, _NUM_CHANNELS], dtype=np.int32)
+        # Open issue in tensorflow-1.11.0. We should cast this to np.uint32, but
+        # tf.batch doesn't work with uint32, only int32. Fixed in 1.12.0
+        # https://github.com/tensorflow/tensorflow/issues/18586
+        binned_spikes = data_dict[_SPIKE_FIELD_NAME].astype(np.int32)
         assert binned_spikes.shape[1] == sequence_size, \
             "expected: {}, actual: {}".format(sequence_size, binned_spikes.shape[1])
         assert binned_spikes.shape[2] == _NUM_CHANNELS, \
@@ -55,15 +69,15 @@ def binned_spike_sequences(filenames, batch_size, sequence_size, rate=100):
         return binned_spikes
 
 
-    def _to_binned_spikes_dataset(filename):
+    def _to_binned_spikes_dataset(data_fname):
         """Convert file to dataset of binned spikes.
 
         Args:
-          filename (str): HDF5 or MATLAB file containing binned spiking data
+          data_fname (str): HDF5 or MATLAB file containing binned spiking data
         """
         binned_spikes, = tf.py_func(_to_binned_spikes,
-                                   [filename, sequence_size],
-                                   [tf.uint32])
+                                   [data_fname, sequence_size],
+                                   [tf.int32])
         binned_spikes.set_shape([None, None, _NUM_CHANNELS])
         return tf.data.Dataset.from_tensor_slices(binned_spikes)
 
@@ -85,9 +99,9 @@ def write_poisson_spikes(path, num_time_points):
     Ranges from 1-10Hz neurons
     Args:
     """
-    spikes = np.zeros([1, _NUM_CHANNELS, num_time_points]).astype(np.int)
+    spikes = np.zeros([1, num_time_points, _NUM_CHANNELS]).astype(np.int32)
     for channel in range(_NUM_CHANNELS):
-        spikes[0, channel,:] = np.random.poisson(channel, size=num_time_points)
+        spikes[0,:,channel] = np.random.poisson(channel, size=num_time_points)
 
     try:
         with h5py.File(path, 'a') as h5_file:
