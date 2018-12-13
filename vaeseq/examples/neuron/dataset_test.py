@@ -27,9 +27,8 @@ class DatasetTest(tf.test.TestCase):
 
     def _write_spikes(self, file_idx):
         """Write a temporary HDF5 file with 1-trial of spiking data."""
-        # temp_path = os.path.join(r'C:\Users\hst\Documents\cguan\vae-seq\build',
         temp_path = os.path.join(self.get_temp_dir(),
-            "spikes_{}.h5".format(file_idx))
+                                 "spikes_{}.h5".format(file_idx))
         dataset_mod.write_poisson_spikes(
             temp_path, self._NUM_TIME_POINTS, self._NUM_CHANNELS)
         return temp_path
